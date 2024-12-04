@@ -2,7 +2,7 @@
 
 Welcome to the **MediBot App**! 🎉 MediBot is a smart, interactive, and user-friendly solution designed to streamline hospital operations and improve the patient experience. Whether you need quick answers to medical queries or seamless appointment bookings, MediBot has you covered! 💡  
 
-🔗 **[Check it out here!](https://medibot-for-hospitals.streamlit.app/)**  
+🔗 **[Check it out here!]([https://medibot-for-hospitals.streamlit.app/](https://medibot-hb9rduvv3tgxt4htasvgxl.streamlit.app/))**  
 
 ---
 
