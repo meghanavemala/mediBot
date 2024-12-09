@@ -37,7 +37,8 @@ def initialize_database():
         hospital_name TEXT NOT NULL,
         hospital_location TEXT NOT NULL,
         availability TEXT NOT NULL,
-        working_days TEXT NOT NULL
+        working_days TEXT NOT NULL,
+        rating TEXT NOT NULL
     )
     ''')
 
@@ -47,9 +48,9 @@ def initialize_database():
         cursor.executemany('''
         INSERT INTO doctors (
             doctor_identity_number, doctor_name, symptom_name, specialization, 
-            contact, email, hospital_name, hospital_location, availability, working_days
+            contact, email, hospital_name, hospital_location, availability, working_days, rating
         ) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', [
             ('1017', 'Dr. Shanta V.', 'fractures, internal injuries, tumors, abnormal growths, infections, lung conditions, heart conditions, brain abnormalities, gastrointestinal issues, spinal problems, cancer screening, bone density issues, unexplained pain, swollen organs, imaging needs', 'Radiologist', '9853398615', 'dr..shanta.v.@hospital.com', 'Adichunchanagiri Institute of Medical Sciences', 'B.G. Nagara\nMandya, Karnataka 571448\nIndia', '09:00-18:00', 'Wednesday, Thursday, Tuesday, Saturday', '1.6') ,
 ('4925', 'Dr. Vandana Shiva', 'mobility issues, memory loss, frequent falls, arthritis, chronic diseases, osteoporosis, frailty, depression in the elderly, hearing problems, visual impairments, medication management, dementia, sleep issues, urinary incontinence, cardiovascular diseases', 'Geriatrician', '9655368054', 'dr..vandana.shiva@hospital.com', 'Shimoga Institute of Medical Sciences', 'Sagar Road\nShivamogga, Karnataka 577201\nIndia', '09:00-19:00', 'Wednesday, Saturday, Friday', '1.2') ,
@@ -262,7 +263,7 @@ def query_database(symptoms):
     cursor.execute(
         '''
         SELECT doctor_identity_number, doctor_name, specialization, contact, 
-               email, hospital_name, hospital_location, availability, working_days
+               email, hospital_name, hospital_location, availability, working_days, rating
         FROM doctors 
         WHERE symptom_name LIKE ?
         ''',
@@ -317,7 +318,7 @@ initialize_database()
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
 
-# Doctor Recommendation Chatbot Section
+# Dcotor recommendation chatbot
 if menu_option == "Doctor Recommendation Chatbot":
     st.header("Doctor Recommendation Chatbot")
     user_input = st.text_input("Enter your symptoms:", key="doctor_input")
@@ -328,26 +329,28 @@ if menu_option == "Doctor Recommendation Chatbot":
         doctor_details = query_database(user_input)
         if doctor_details:
             st.subheader("Matching Doctors:")
+            
+            # Create a DataFrame from the queried doctor details
             doctor_df = pd.DataFrame(
                 doctor_details,
                 columns=[
                     "Doctor Identity Number", "Doctor Name", "Specialization", 
                     "Contact", "Email", "Hospital Name", "Hospital Location", 
-                    "Availability", "Working Days"
+                    "Availability", "Working Days", "Rating"
                 ],
             )
+            
+            # Sort the DataFrame in descending order by the Rating column
+            doctor_df = doctor_df.sort_values(by="Rating", ascending=False)
+            
+            # Display the sorted DataFrame
             st.dataframe(doctor_df)
 
-            # response = get_gemini_response(user_input, doctor_details)
-            # bot_response = "".join(chunk.text for chunk in response)
-
+            # Store user input in chat history
             st.session_state["chat_history"].append(("You", user_input))
-            #st.session_state["chat_history"].append(("Bot", bot_response))
-
-            #st.subheader("Response Summary:")
-            #st.write(bot_response)
         else:
             st.error("Sorry, no matching doctors found in our database.")
+
 
 # Normal Question and Answer Chatbot Section
 elif menu_option == "Q&A Chatbot":
@@ -368,27 +371,38 @@ elif menu_option == "Q&A Chatbot":
 # Find Doctors by Specialization Section
 elif menu_option == "Find Doctors by Specialization":
     st.header("Find Doctors by Specialization")
+    
+    # Fetch specializations from the database
     conn = sqlite3.connect("doctor_recommendations.db")
     cursor = conn.cursor()
     cursor.execute("SELECT DISTINCT specialization FROM doctors")
     specializations = [row[0] for row in cursor.fetchall()]
     conn.close()
 
+    # Select specialization from dropdown
     specialization = st.selectbox("Select a specialization:", specializations)
     find_button = st.button("Find Doctors")
 
     if find_button and specialization:
         conn = sqlite3.connect("doctor_recommendations.db")
         cursor = conn.cursor()
+        
+        # Fetch doctor details sorted by rating in descending order
         cursor.execute(
-            "SELECT doctor_identity_number, doctor_name, symptom_name, contact, email, hospital_name, hospital_location, availability, working_days FROM doctors WHERE specialization = ?",
+            """
+            SELECT doctor_identity_number, doctor_name, symptom_name, contact, email, 
+                   hospital_name, hospital_location, availability, working_days, rating
+            FROM doctors 
+            WHERE specialization = ? 
+            ORDER BY rating DESC
+            """,
             (specialization,)
         )
         specialization_doctors = cursor.fetchall()
         conn.close()
 
         if specialization_doctors:
-            st.subheader(f"Doctors specializing in {specialization}:")
+            st.subheader(f"Doctors specializing in {specialization} (sorted by Rating):")
             specialization_df = pd.DataFrame(
                 specialization_doctors,
                 columns=[
@@ -400,12 +414,14 @@ elif menu_option == "Find Doctors by Specialization":
                     "Hospital Name",
                     "Hospital Location",
                     "Availability",
-                    "Working_days"
+                    "Working Days",
+                    "Rating"
                 ],
             )
             st.dataframe(specialization_df)
         else:
             st.error(f"No doctors found for specialization: {specialization}.")
+
 
 
 # Display Chat History
